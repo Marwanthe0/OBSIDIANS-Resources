@@ -1,15 +1,13 @@
-// https://vjudge.net/problem/LightOJ-1384
 struct RollbackUF {
     vector<int> e;
     vector<pair<int, int>> st;
-    RollbackUF(int _n) : e(_n, -1) {}
-    int size(int x) { return -e[find(x)]; };
-    int time() { return st.size(); }
+    RollbackUF(int n) : e(n, -1) {}
+    int size(int x) { return -e[find(x)]; }
     int find(int x) { return e[x] < 0 ? x : find(e[x]); }
+    int time() { return (int)st.size(); }
     void rollback(int t) {
-        for (int i = time(); i-- > t;) {
+        for (int i = time(); i-- > t;)
             e[st[i].first] = st[i].second;
-        }
         st.resize(t);
     }
     bool join(int a, int b) {
@@ -23,12 +21,14 @@ struct RollbackUF {
     }
 };
 struct Edge {
-    int u, v, b, w;
+    int u, v;
+    long long w;
 };
 struct Node {
     Edge key;
     Node *l = nullptr, *r = nullptr;
-    int delta;
+    long long delta = 0;
+
     void prop() {
         key.w += delta;
         if (l) l->delta += delta;
@@ -40,56 +40,63 @@ struct Node {
         return key;
     }
 };
-Node *merge(Node *a, Node *b) {
-    if (!a or !b) return a ? a : b;
+Node* merge(Node* a, Node* b) {
+    if (!a || !b) return a ? a : b;
     a->prop(), b->prop();
     if (a->key.w > b->key.w) swap(a, b);
-    swap(a->l, a->r = merge(b, a->r));
+    a->r = merge(b, a->r);
+    swap(a->l, a->r);
     return a;
 }
-void pop(Node *&a)
-{
+
+void pop(Node*& a) {
     a->prop();
     a = merge(a->l, a->r);
 }
-pair<int, vector<int>> dmst(int n, int r, vector<Edge> &g) {
+// If no Directed MST exists, returns {-1, {}}.
+pair<long long, vector<int>> dmst(int n, int r, const vector<Edge>& g) {
     RollbackUF uf(n);
-    vector<Node *> heap(n);
-    for (Edge e : g) {
-        heap[e.v] = merge(heap[e.v], new Node{e});
+    vector<Node*> heap(n, nullptr);
+    for (const auto& e : g) {
+        if (e.u != e.v) {
+            heap[e.v] = merge(heap[e.v], new Node{e});
+        }
     }
-    int res = 0;
-    vector<int> seen(n, -1), path(n), par(n);
+    long long res = 0;
+    vector<int> seen(n, -1), path(n), par(n, -1);
     seen[r] = r;
-    vector<Edge> Q(n), in(n, {-1, -1, -1, -1}), comp;
+    vector<Edge> Q(n), in(n, {-1, -1, 0});
     deque<tuple<int, int, vector<Edge>>> cycs;
     for (int s = 0; s < n; s++) {
         int u = s, qi = 0, w;
         while (seen[u] < 0) {
             if (!heap[u]) return {-1, {}};
             Edge e = heap[u]->top();
-            heap[u]->delta -= e.w, pop(heap[u]);
+            heap[u]->delta -= e.w;
+            pop(heap[u]);
             Q[qi] = e, path[qi++] = u, seen[u] = s;
             res += e.w, u = uf.find(e.u);
             if (seen[u] == s) {
-                Node *cyc = 0;
+                Node* cyc = nullptr;
                 int end = qi, time = uf.time();
-                do
+                do {
                     cyc = merge(cyc, heap[w = path[--qi]]);
-                while (uf.join(u, w));
+                } while (uf.join(u, w));
                 u = uf.find(u), heap[u] = cyc, seen[u] = -1;
                 cycs.push_front({u, time, {&Q[qi], &Q[end]}});
             }
         }
-        for (int i = 0; i < qi; i++) in[uf.find(Q[i].v)] = Q[i];
+        for (int i = 0; i < qi; i++) {
+            in[uf.find(Q[i].v)] = Q[i];
+        }
     }
-    for (auto &[u, t, comp] : cycs) {
+    for (auto& [u, t, comp] : cycs) {
         uf.rollback(t);
         Edge inEdge = in[u];
-        for (auto &e : comp) {
+        for (auto& e : comp) {
             in[uf.find(e.v)] = e;
-            in[uf.find(inEdge.v)] = inEdge;
         }
+        in[uf.find(inEdge.v)] = inEdge;
     }
     for (int i = 0; i < n; i++) {
         par[i] = in[i].u;
