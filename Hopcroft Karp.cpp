@@ -1,4 +1,4 @@
-struct HopcroftKarp {
+struct HopcroftKarp { // 1-based
     int n, m;
     vector<vector<int>> adj;
     vector<int> pairU, pairV, dist;
