@@ -1,4 +1,4 @@
-
+const int INF = 1e8;
 struct Edge {
     int v;
     int wt;
